@@ -2,8 +2,10 @@
 
 # Author: Geomar Manzano
 
-import sys, os
+import sys, os, subprocess
 from PyQt4 import QtCore, QtGui
+
+TIMER = 5000
 
 class MainWindow(QtGui.QMainWindow):
     def __init__(self):
@@ -18,8 +20,8 @@ class MainWindow(QtGui.QMainWindow):
         self.createMenus()
 
         # Status Bar
-        status = self.statusBar()
-        status.showMessage('No entered program')
+        self.status = self.statusBar()
+        self.status.showMessage('No entered program', TIMER)
 
         # Necessary Widgets
         self.programLabel = QtGui.QLabel('&Program')
@@ -56,13 +58,15 @@ class MainWindow(QtGui.QMainWindow):
         self.outputMenu.addAction(self.onScreen_action)
         self.outputMenu.addAction(self.offScreen_action)
     def programOpen_slot(self):
-        name = QtGui.QFileDialog.getOpenFileName(self, 'Open Program')
-        print 'Test Program Opened:', name  # Testing purposes
+        self.progPath = QtGui.QFileDialog.getOpenFileName(self, 'Open Program')
+        self.status.showMessage('Program Loaded', TIMER)
     def fileOpen_slot(self):
-        name = QtGui.QFileDialog.getOpenFileName(self, 'Open Program')
-        print 'Test File Opened:', name  # Testing purposes        
+        fileName = QtGui.QFileDialog.getOpenFileName(self, 'Open Program')
+        fl = open(fileName, 'r')
+        self.status.showMessage('File Loaded', TIMER)
     def execProgram_slot(self):
-        print 'Test: Run pressed'
+        subprocess.call(str(self.progPath))
+        self.status.showMessage('Program Executed', TIMER)
     def onScreen_slot(self):
         print 'Test: On Screen'
     def offScreen_slot(self):
