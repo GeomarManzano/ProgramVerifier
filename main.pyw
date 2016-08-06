@@ -1,11 +1,12 @@
 #! /usr/bin/python
 
 # Author: Geomar Manzano
-
-import sys, os, subprocess, ntpath
+ 
+import sys, subprocess, ntpath
+import textDialog
 from PyQt4 import QtCore, QtGui
 
-TIMER = 5000
+TIMER = 5000 # 5000 milliseconds is equal to 5 seconds
 
 class MainWindow(QtGui.QMainWindow):
     def __init__(self):
@@ -65,18 +66,43 @@ class MainWindow(QtGui.QMainWindow):
     def programOpen_slot(self):
         self.progPath = QtGui.QFileDialog.getOpenFileName(self, 'Open Program')
         self.status.showMessage('Program Loaded', TIMER)
-        head, tail = ntpath.split(str(self.progPath))
-        self.loadedProg.insert(tail)
+        progHead, self.progTail = ntpath.split(str(self.progPath))
+        self.loadedProg.setText(self.progTail)
     def fileOpen_slot(self):
         self.fileName = QtGui.QFileDialog.getOpenFileName(self, 'Open Program')
         fl = open(self.fileName, 'r')
         self.status.showMessage('File Loaded', TIMER)
-        head, tail = ntpath.split(str(self.fileName))
-        self.loadedTxtFile.insert(tail)
+        fileHead, self.fileTail = ntpath.split(str(self.fileName))
+        self.loadedTxtFile.setText(self.fileTail)
     def execProgram_slot(self):
         try:
-            subprocess.call(str(self.progPath))
+            process = subprocess.Popen(
+                [str(self.progPath)],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE)
+
+            output, err = process.communicate()
+            exit_code = process.wait()
+
             self.status.showMessage('Program Executed', TIMER)
+
+            if self.onScreen_action.isChecked():
+                # Note: replacing self.dlg with dlg will possibly cause dlg
+                # to be garbage collected once this method is done executing.
+                # Therefore it's required to add the self in to keep the
+                # dialog in scope
+                self.dlg = textDialog.TextDialog(self.progTail + ' output',
+                                                 output)
+
+                # Modeless dialog
+                self.dlg.show()
+            elif offScreen_action.isChecked():
+                # Open up a save dialog so the user can enter the name of the
+                # text file where the output of the program will be saved.
+                # Ask the user if they want the saved text file to be
+                # overwritten on each program run
+                pass 
         except AttributeError:
             self.noProgram_errDlg.critical(self, 'Error', 'No program entered')
     def onScreen_slot(self):
@@ -113,4 +139,4 @@ if __name__ == '__main__':
     app = QtGui.QApplication(sys.argv) # Required for all PyQt applications
     window = MainWindow()              # Instantiation of the MainWindow class
     window.show()                      # Paint the widgets onto the screen
-    sys.exit(app.exec_())              # Exit the program cleanly
+    sys.exit(app.exec_())              # Start and exit the program cleanly
