@@ -2,7 +2,7 @@
 
 # Author: Geomar Manzano
 
-import sys, os, subprocess
+import sys, os, subprocess, ntpath
 from PyQt4 import QtCore, QtGui
 
 TIMER = 5000
@@ -29,6 +29,11 @@ class MainWindow(QtGui.QMainWindow):
         self.programButton = QtGui.QPushButton('Browse')
         self.inputTxtButton = QtGui.QPushButton('Browse')
         self.runButton = QtGui.QPushButton('&Run')
+        self.loadedProg = QtGui.QLineEdit()
+        self.loadedTxtFile = QtGui.QLineEdit()
+        
+        # Dialogs
+        self.noProgram_errDlg = QtGui.QMessageBox(self)
         
         # Buddies
         self.programLabel.setBuddy(self.programButton)
@@ -60,13 +65,20 @@ class MainWindow(QtGui.QMainWindow):
     def programOpen_slot(self):
         self.progPath = QtGui.QFileDialog.getOpenFileName(self, 'Open Program')
         self.status.showMessage('Program Loaded', TIMER)
+        head, tail = ntpath.split(str(self.progPath))
+        self.loadedProg.insert(tail)
     def fileOpen_slot(self):
-        fileName = QtGui.QFileDialog.getOpenFileName(self, 'Open Program')
-        fl = open(fileName, 'r')
+        self.fileName = QtGui.QFileDialog.getOpenFileName(self, 'Open Program')
+        fl = open(self.fileName, 'r')
         self.status.showMessage('File Loaded', TIMER)
+        head, tail = ntpath.split(str(self.fileName))
+        self.loadedTxtFile.insert(tail)
     def execProgram_slot(self):
-        subprocess.call(str(self.progPath))
-        self.status.showMessage('Program Executed', TIMER)
+        try:
+            subprocess.call(str(self.progPath))
+            self.status.showMessage('Program Executed', TIMER)
+        except AttributeError:
+            self.noProgram_errDlg.critical(self, 'Error', 'No program entered')
     def onScreen_slot(self):
         print 'Test: On Screen'
     def offScreen_slot(self):
@@ -76,6 +88,9 @@ class MainWindow(QtGui.QMainWindow):
         self.inputTxtButton.clicked.connect(self.fileOpen_slot)
         self.runButton.clicked.connect(self.execProgram_slot)
     def initUI(self):
+        self.loadedProg.setEnabled(False)
+        self.loadedTxtFile.setEnabled(False)
+
         buttonLayout = QtGui.QHBoxLayout()
         buttonLayout.addStretch()
         buttonLayout.addWidget(self.runButton)
@@ -83,14 +98,16 @@ class MainWindow(QtGui.QMainWindow):
         # Central Widget layout setup
         layout = QtGui.QGridLayout()
         layout.addWidget(self.programLabel, 0, 0)
-        layout.addWidget(self.programButton, 0, 1)
-        layout.addWidget(self.inputTxtLabel, 1, 0)
-        layout.addWidget(self.inputTxtButton, 1, 1)
-        layout.addLayout(buttonLayout, 2, 0, 1, 2)
+        layout.addWidget(self.programButton, 0, 2)
+        layout.addWidget(self.loadedProg, 0, 1)
+        layout.addWidget(self.inputTxtLabel, 2, 0)
+        layout.addWidget(self.inputTxtButton, 2, 2)
+        layout.addWidget(self.loadedTxtFile, 2, 1)
+        layout.addLayout(buttonLayout, 3, 0, 1, 3)
         self.centralWidget.setLayout(layout)
 
         self.setWindowTitle('Program Verifier')
-        self.setFixedSize(250, 140)
+        self.setFixedSize(400, 150)
 
 if __name__ == '__main__':
     app = QtGui.QApplication(sys.argv) # Required for all PyQt applications
