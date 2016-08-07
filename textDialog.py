@@ -1,5 +1,7 @@
 #! /usr/bin/python
 
+# Author: Geomar Manzano
+
 import sys
 from PyQt4 import QtCore, QtGui
 

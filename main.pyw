@@ -69,7 +69,7 @@ class MainWindow(QtGui.QMainWindow):
         progHead, self.progTail = ntpath.split(str(self.progPath))
         self.loadedProg.setText(self.progTail)
     def fileOpen_slot(self):
-        self.fileName = QtGui.QFileDialog.getOpenFileName(self, 'Open Program')
+        self.fileName = QtGui.QFileDialog.getOpenFileName(self, 'Open File')
         fl = open(self.fileName, 'r')
         self.status.showMessage('File Loaded', TIMER)
         fileHead, self.fileTail = ntpath.split(str(self.fileName))
@@ -97,18 +97,17 @@ class MainWindow(QtGui.QMainWindow):
 
                 # Modeless dialog
                 self.dlg.show()
-            elif offScreen_action.isChecked():
-                # Open up a save dialog so the user can enter the name of the
-                # text file where the output of the program will be saved.
-                # Ask the user if they want the saved text file to be
-                # overwritten on each program run
-                pass 
+            elif self.offScreen_action.isChecked():
+                openedFile = open(self.saveFile, 'w')
+                openedFile.write(output)
+                openedFile.close()
         except AttributeError:
             self.noProgram_errDlg.critical(self, 'Error', 'No program entered')
     def onScreen_slot(self):
-        print 'Test: On Screen'
+        self.onScreen_action.setChecked(True)
     def offScreen_slot(self):
-        print 'Test: Off Screen'
+        self.offScreen_action.setChecked(True)
+        self.saveFile = QtGui.QFileDialog.getSaveFileName(self, 'Save Results')
     def initConnections(self):
         self.programButton.clicked.connect(self.programOpen_slot)
         self.inputTxtButton.clicked.connect(self.fileOpen_slot)
