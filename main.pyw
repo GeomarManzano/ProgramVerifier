@@ -32,6 +32,9 @@ class MainWindow(QtGui.QMainWindow):
         self.runButton = QtGui.QPushButton('&Run')
         self.loadedProg = QtGui.QLineEdit()
         self.loadedTxtFile = QtGui.QLineEdit()
+        self.saveModeLabel = QtGui.QLabel('&Save Mode')
+        self.saveModeBox = QtGui.QComboBox()
+        self.saveModeBox.addItems(['Overwrite', 'Append'])
         
         # Dialogs
         self.noProgram_errDlg = QtGui.QMessageBox(self)
@@ -39,6 +42,7 @@ class MainWindow(QtGui.QMainWindow):
         # Buddies
         self.programLabel.setBuddy(self.programButton)
         self.inputTxtLabel.setBuddy(self.inputTxtButton)
+        self.saveModeLabel.setBuddy(self.saveModeBox)
 
         # Initializations
         self.initUI()
@@ -56,7 +60,6 @@ class MainWindow(QtGui.QMainWindow):
         self.outputModeGroup.addAction(self.onScreen_action)
         self.outputModeGroup.addAction(self.offScreen_action)
         self.onScreen_action.setChecked(True)
-        
     def createMenus(self):
         self.optionMenu = self.menuBar().addMenu('&Options')
         
@@ -94,31 +97,38 @@ class MainWindow(QtGui.QMainWindow):
                 # dialog in scope
                 self.dlg = textDialog.TextDialog(self.progTail + ' output',
                                                  output)
-
+                
                 # Modeless dialog
                 self.dlg.show()
             elif self.offScreen_action.isChecked():
-                openedFile = open(self.saveFile, 'w')
+                openedFile = open(self.saveFile, self.mode)
                 openedFile.write(output)
                 openedFile.close()
         except AttributeError:
             self.noProgram_errDlg.critical(self, 'Error', 'No program entered')
     def onScreen_slot(self):
         self.onScreen_action.setChecked(True)
+        self.saveMode(False)
     def offScreen_slot(self):
         self.offScreen_action.setChecked(True)
         self.saveFile = QtGui.QFileDialog.getSaveFileName(self, 'Save Results')
+        self.saveMode(True)
+        self.mode = 'w'      # Save mode is initially overwrite
+    def setSaveMode_slot(self, index):
+        if index == 0:       # Corresponds to overwrite on the combobox
+            self.mode = 'w'
+        elif index == 1:     # Corresponds to append on the combox
+            self.mode = 'a'
+        self.status.showMessage('Save Mode Changed', TIMER)
     def initConnections(self):
         self.programButton.clicked.connect(self.programOpen_slot)
         self.inputTxtButton.clicked.connect(self.fileOpen_slot)
         self.runButton.clicked.connect(self.execProgram_slot)
+        self.saveModeBox.currentIndexChanged.connect(self.setSaveMode_slot)
     def initUI(self):
         self.loadedProg.setEnabled(False)
         self.loadedTxtFile.setEnabled(False)
-
-        buttonLayout = QtGui.QHBoxLayout()
-        buttonLayout.addStretch()
-        buttonLayout.addWidget(self.runButton)
+        self.saveMode(False)
         
         # Central Widget layout setup
         layout = QtGui.QGridLayout()
@@ -128,11 +138,24 @@ class MainWindow(QtGui.QMainWindow):
         layout.addWidget(self.inputTxtLabel, 2, 0)
         layout.addWidget(self.inputTxtButton, 2, 2)
         layout.addWidget(self.loadedTxtFile, 2, 1)
-        layout.addLayout(buttonLayout, 3, 0, 1, 3)
+        layout.addWidget(self.saveModeLabel, 3, 0)
+        layout.addWidget(self.saveModeBox, 3, 1)
+        layout.addWidget(self.runButton, 3, 2)
         self.centralWidget.setLayout(layout)
 
         self.setWindowTitle('Program Verifier')
         self.setFixedSize(400, 150)
+    def saveMode(self, isActivated):
+        if isActivated:
+            self.saveModeBox.setEnabled(True)
+            self.saveModeLabel.setEnabled(True)
+            self.saveModeBox.setVisible(True)
+            self.saveModeLabel.setVisible(True)
+        else:
+            self.saveModeBox.setEnabled(False)
+            self.saveModeLabel.setEnabled(False)
+            self.saveModeBox.setVisible(False)
+            self.saveModeLabel.setVisible(False)
 
 if __name__ == '__main__':
     app = QtGui.QApplication(sys.argv) # Required for all PyQt applications
