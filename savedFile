@@ -1,2 +1,8 @@
-
+--- testProgram2
++++ testFile
+@@ -1 +1,3 @@
+-Test Program 2 executed
++Line 1: Test Program 1 executed
++Line 1a: Test Program 1 executed
++Line 3: Test Program 1 executed
 

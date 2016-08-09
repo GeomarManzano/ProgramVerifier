@@ -1,17 +1,24 @@
 #! /usr/bin/python
 
 # Author: Geomar Manzano
- 
-import sys, subprocess, ntpath, difflib
-import textDialog
+
+import sys           # used for a clean exit of the application
+import subprocess    # to run external programs
+import ntpath        # to parse paths
+import difflib       # to show differences between files
+import textDialog    # text dialog in order to show differences
 from PyQt4 import QtCore, QtGui
 
-TIMER = 5000 # 5000 milliseconds is equal to 5 seconds
+TIMER = 3000 # 3000 milliseconds is equal to 3 seconds
 
 class MainWindow(QtGui.QMainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()
 
+        # Instance variables
+        self.progPath = None
+        self.testFilePath = None
+        
         # Central Widget
         self.centralWidget = QtGui.QWidget()
         self.setCentralWidget(self.centralWidget)
@@ -25,24 +32,24 @@ class MainWindow(QtGui.QMainWindow):
         self.status.showMessage('No entered program', TIMER)
 
         # Necessary Widgets
-        self.programLabel = QtGui.QLabel('&Program')
-        self.inputTxtLabel = QtGui.QLabel('&Text File')
-        self.programButton = QtGui.QPushButton('Browse')
-        self.inputTxtButton = QtGui.QPushButton('Browse')
+        self.progLabel = QtGui.QLabel('&Program')
+        self.inputTestLabel = QtGui.QLabel('&Test File')
+        self.progButton = QtGui.QPushButton('Browse')
+        self.inputTestButton = QtGui.QPushButton('Browse')
         self.runButton = QtGui.QPushButton('&Run')
         self.loadedProg = QtGui.QLineEdit()
-        self.loadedTxtFile = QtGui.QLineEdit()
+        self.loadedTestFile = QtGui.QLineEdit()
         self.saveModeLabel = QtGui.QLabel('&Save Mode')
         self.saveModeBox = QtGui.QComboBox()
         self.saveModeBox.addItems(['Overwrite', 'Append'])
         
         # Dialogs
-        self.noProgram_errDlg = QtGui.QMessageBox(self)
-        self.noDiff_Dlg = QtGui.QMessageBox(self)
+        self.errDlg = QtGui.QMessageBox(self)
+        self.infoDlg = QtGui.QMessageBox(self)
         
         # Buddies
-        self.programLabel.setBuddy(self.programButton)
-        self.inputTxtLabel.setBuddy(self.inputTxtButton)
+        self.progLabel.setBuddy(self.progButton)
+        self.inputTestLabel.setBuddy(self.inputTestButton)
         self.saveModeLabel.setBuddy(self.saveModeBox)
 
         # Initializations
@@ -63,20 +70,32 @@ class MainWindow(QtGui.QMainWindow):
         self.onScreen_action.setChecked(True)
     def createMenus(self):
         self.optionMenu = self.menuBar().addMenu('&Options')
-        
+
+        # Output mode is a submenu of Options with On Screen and Text File
+        # as options for it
         self.outputMenu = self.optionMenu.addMenu('Output Mode')
         self.outputMenu.addAction(self.onScreen_action)
         self.outputMenu.addAction(self.offScreen_action)
     def programOpen_slot(self):
         self.progPath = QtGui.QFileDialog.getOpenFileName(self, 'Open Program')
-        self.status.showMessage('Program Loaded', TIMER)
-        progHead, self.progTail = ntpath.split(str(self.progPath))
-        self.loadedProg.setText(self.progTail)
+
+        # If the user did not cancel the file dialog
+        if not self.progPath.isEmpty() and not self.progPath.isNull():
+            self.status.showMessage('Program loaded', TIMER)
+            progHead, self.progTail = ntpath.split(str(self.progPath))
+            self.loadedProg.setText(self.progTail)
+        else:
+            self.loadedProg.clear() # User canceled the file dialog
     def fileOpen_slot(self):
-        self.fileName = QtGui.QFileDialog.getOpenFileName(self, 'Open File')
-        self.status.showMessage('File Loaded', TIMER)
-        fileHead, self.fileTail = ntpath.split(str(self.fileName))
-        self.loadedTxtFile.setText(self.fileTail)
+        self.testFilePath = QtGui.QFileDialog.getOpenFileName(self, 'Open File')
+
+        # If the user did not cancel the file dialog
+        if not self.testFilePath.isEmpty() and not self.testFilePath.isNull():
+            self.status.showMessage('File loaded', TIMER)
+            fileHead, self.fileTail = ntpath.split(str(self.testFilePath))
+            self.loadedTestFile.setText(self.fileTail)
+        else:
+            self.loadedTestFile.clear() # User canceled the file dialog
     def execProgram_slot(self):
         try:
             process = subprocess.Popen(
@@ -85,19 +104,22 @@ class MainWindow(QtGui.QMainWindow):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE)
 
+            # Get the output and error code of the given program
             output, err = process.communicate()
-            exit_code = process.wait()
+            process.wait()
             output_lines = output.strip().splitlines()
+
+            # Open the test file and read its content
+            with open(str(self.testFilePath)) as testFile:
+                testFile_lines = testFile.read().splitlines()
 
             self.status.showMessage('Program Executed', TIMER)
             
-            with open(self.fileName) as testFile:
-                testFile_lines = testFile.read().splitlines()
-
             # Output a message box if the program output and the given text
-            # file are the same
+            # file are the same and immediately return so nothing else is
+            # done
             if output_lines == testFile_lines:
-                self.noDiff_Dlg.information(
+                self.infoDlg.information(
                     self, 'Info', 'Program output and text file are the same')
                 return
 
@@ -116,14 +138,20 @@ class MainWindow(QtGui.QMainWindow):
                 self.dlg = textDialog.TextDialog(self.progTail + ' output',
                                                  diff)
 
-                # Modeless dialog
+                # Modeless dialog showing differences of the program output
+                # and the given text file
                 self.dlg.show()
             elif self.offScreen_action.isChecked():
                 openedFile = open(self.saveFile, self.mode)
+
+                # Write the differences between the program output and the given
+                # text file in the specified save file
                 openedFile.write(diff)
                 openedFile.close()
-        except AttributeError, child_exception:
-            self.noProgram_errDlg.critical(self, 'Error', 'No program entered')
+        except OSError:
+            self.errDlg.critical(self, 'Error', 'No program entered')
+        except IOError:
+            self.errDlg.critical(self, 'Error', 'No test file entered')
     def onScreen_slot(self):
         self.onScreen_action.setChecked(True)
         self.saveMode(False)
@@ -139,23 +167,28 @@ class MainWindow(QtGui.QMainWindow):
             self.mode = 'a'
         self.status.showMessage('Save Mode Changed', TIMER)
     def initConnections(self):
-        self.programButton.clicked.connect(self.programOpen_slot)
-        self.inputTxtButton.clicked.connect(self.fileOpen_slot)
+        self.progButton.clicked.connect(self.programOpen_slot)
+        self.inputTestButton.clicked.connect(self.fileOpen_slot)
         self.runButton.clicked.connect(self.execProgram_slot)
         self.saveModeBox.currentIndexChanged.connect(self.setSaveMode_slot)
     def initUI(self):
+        # The text fields for the loaded program and the loaded test file are
+        # set to disabled since they are only used for showing information
         self.loadedProg.setEnabled(False)
-        self.loadedTxtFile.setEnabled(False)
+        self.loadedTestFile.setEnabled(False)
+
+        # We initially hide the options for the save mode since they are only
+        # reserved for the Output Text File option
         self.saveMode(False)
         
         # Central Widget layout setup
         layout = QtGui.QGridLayout()
-        layout.addWidget(self.programLabel, 0, 0)
-        layout.addWidget(self.programButton, 0, 2)
+        layout.addWidget(self.progLabel, 0, 0)
+        layout.addWidget(self.progButton, 0, 2)
         layout.addWidget(self.loadedProg, 0, 1)
-        layout.addWidget(self.inputTxtLabel, 2, 0)
-        layout.addWidget(self.inputTxtButton, 2, 2)
-        layout.addWidget(self.loadedTxtFile, 2, 1)
+        layout.addWidget(self.inputTestLabel, 2, 0)
+        layout.addWidget(self.inputTestButton, 2, 2)
+        layout.addWidget(self.loadedTestFile, 2, 1)
         layout.addWidget(self.saveModeLabel, 3, 0)
         layout.addWidget(self.saveModeBox, 3, 1)
         layout.addWidget(self.runButton, 3, 2)
@@ -176,7 +209,7 @@ class MainWindow(QtGui.QMainWindow):
             self.saveModeLabel.setVisible(False)
 
 if __name__ == '__main__':
-    app = QtGui.QApplication(sys.argv) # Required for all PyQt applications
+    app = QtGui.QApplication([])       # Required for all PyQt applications
     window = MainWindow()              # Instantiation of the MainWindow class
     window.show()                      # Paint the widgets onto the screen
     sys.exit(app.exec_())              # Start and exit the program cleanly
