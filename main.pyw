@@ -2,7 +2,7 @@
 
 # Author: Geomar Manzano
  
-import sys, subprocess, ntpath
+import sys, subprocess, ntpath, difflib
 import textDialog
 from PyQt4 import QtCore, QtGui
 
@@ -38,6 +38,7 @@ class MainWindow(QtGui.QMainWindow):
         
         # Dialogs
         self.noProgram_errDlg = QtGui.QMessageBox(self)
+        self.noDiff_Dlg = QtGui.QMessageBox(self)
         
         # Buddies
         self.programLabel.setBuddy(self.programButton)
@@ -73,7 +74,6 @@ class MainWindow(QtGui.QMainWindow):
         self.loadedProg.setText(self.progTail)
     def fileOpen_slot(self):
         self.fileName = QtGui.QFileDialog.getOpenFileName(self, 'Open File')
-        fl = open(self.fileName, 'r')
         self.status.showMessage('File Loaded', TIMER)
         fileHead, self.fileTail = ntpath.split(str(self.fileName))
         self.loadedTxtFile.setText(self.fileTail)
@@ -87,8 +87,26 @@ class MainWindow(QtGui.QMainWindow):
 
             output, err = process.communicate()
             exit_code = process.wait()
+            output_lines = output.strip().splitlines()
 
             self.status.showMessage('Program Executed', TIMER)
+            
+            with open(self.fileName) as testFile:
+                testFile_lines = testFile.read().splitlines()
+
+            # Output a message box if the program output and the given text
+            # file are the same
+            if output_lines == testFile_lines:
+                self.noDiff_Dlg.information(
+                    self, 'Info', 'Program output and text file are the same')
+                return
+
+            diff = '\n'.join(list(
+                difflib.unified_diff(output_lines, testFile_lines,
+                                     fromfile=self.progTail,
+                                     tofile=self.fileTail,
+                                     lineterm='')))
+            diff += '\n\n'
 
             if self.onScreen_action.isChecked():
                 # Note: replacing self.dlg with dlg will possibly cause dlg
@@ -96,15 +114,15 @@ class MainWindow(QtGui.QMainWindow):
                 # Therefore it's required to add the self in to keep the
                 # dialog in scope
                 self.dlg = textDialog.TextDialog(self.progTail + ' output',
-                                                 output)
-                
+                                                 diff)
+
                 # Modeless dialog
                 self.dlg.show()
             elif self.offScreen_action.isChecked():
                 openedFile = open(self.saveFile, self.mode)
-                openedFile.write(output)
+                openedFile.write(diff)
                 openedFile.close()
-        except AttributeError:
+        except AttributeError, child_exception:
             self.noProgram_errDlg.critical(self, 'Error', 'No program entered')
     def onScreen_slot(self):
         self.onScreen_action.setChecked(True)
